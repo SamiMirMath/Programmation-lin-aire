@@ -94,7 +94,7 @@ input[type=range]{width:100%}
 <body>
 <div class="wrap">
   <h1>Le simplexe en images</h1>
-  <p class="lead">Saisissez votre problème (2 ou 3 variables) : le programme déroule la méthode algébrique étape par étape, comme dans le polycopié. Tout se calcule dans votre navigateur.</p>
+  <p class="lead">Saisissez votre problème (2 ou 3 variables) : le programme déroule la méthode algébrique étape par étape. Tout se calcule dans votre navigateur.</p>
 
   <section id="formCard" class="card">
     <div class="row"><span class="lab">Nombre de variables</span>
@@ -107,7 +107,7 @@ input[type=range]{width:100%}
     <div style="margin-top:12px"><span class="lab" style="color:var(--muted)">Contraintes (x ≥ 0 sous-entendu ; cliquer sur ≤ pour passer à ≥)</span></div>
     <div id="consRows"></div>
     <div class="row"><button id="addRow">+ Ajouter une contrainte</button></div>
-    <p class="hint">Nombres : 3, 0,5 ou 1/2 ; case vide = 0. Méthode du polycopié : contraintes ≤ à second membre ≥ 0 (une contrainte ≥ est acceptée si elle le devient après multiplication par −1).</p>
+    <p class="hint">Nombres : 3, 0,5 ou 1/2 ; case vide = 0.</p>
     <div class="err" id="err"></div>
     <button class="primary" id="launch">Lancer ▶</button>
   </section>
@@ -193,7 +193,7 @@ function construireProbleme(S){
     if(rhs===null) throw new ErreurSaisie(`Contrainte ${num} : second membre manquant.`);
     if(nul) throw new ErreurSaisie(`Contrainte ${num} : aucun coefficient non nul.`);
     let aa=a, bb=rhs; if(r.op===">="){ aa=a.map(x=>x.neg()); bb=rhs.neg(); }
-    if(bb.sign()<0) throw new ErreurSaisie(`Contrainte ${num} : après mise sous la forme a·x ≤ b, le second membre est négatif : l'origine n'est pas admissible. La méthode algébrique du polycopié suppose des contraintes ≤ à second membre ≥ 0 (les autres cas demandent la phase 1).`);
+    if(bb.sign()<0) throw new ErreurSaisie(`Contrainte ${num} : après mise sous la forme a·x ≤ b, le second membre est négatif : l'origine n'est pas admissible. La méthode algébrique suppose des contraintes ≤ à second membre ≥ 0 (les autres cas demandent la phase 1).`);
     A.push(aa); b.push(bb); });
   if(!A.length) throw new ErreurSaisie("Il faut au moins une contrainte.");
   const m=A.length, nv=n+m, cint=S.sens==='max'?c:c.map(x=>x.neg());
@@ -481,9 +481,7 @@ function dessinSim(sc,ctx,Pt){ const s=ctx.hist[ctx.hist.length-1], A=position(s
   return {pt,ent:(info&&sub>=1)?info.ent:null,sort:(info&&sub>=3)?info.sort:null}; }
 const fdisp=g=>P.sens==='max'?g:-g;
 
-/* =====================================================================
-   9. NARRATION PAR ÉTAPES (comme dans le polycopié)
-   ===================================================================== */
+
 function blocsPivot(s,info,n2,subMax,unb,instruction){
   const g=P.sens==='max'?'f':'g', n=P.n, blocs=[]; const cand=candidates(s);
   let h=`<h3>Programme de base n°${s.pivots+1} — sommet ${nomSommet(position(s,n))}${P.sens==='min'?' <small>(on maximise g = −f)</small>':''}</h3><div class="eqs">`;
