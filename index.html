@@ -173,6 +173,8 @@ input[type=range]{width:100%}
 
 <script>
 "use strict";
+/* Interrupteur : false = onglet « Gradient » et flèche ∇f masqués ; true = on les réaffiche. */
+const AFFICHER_GRADIENT=false;
 /* =====================================================================
    1. FRACTIONS EXACTES (BigInt)
    ===================================================================== */
@@ -512,7 +514,7 @@ class Scene{
 function iso(sc,p){ const c=dot(P.C,p), pts=R.section(c);
   if(P.n===2&&pts.length>=2) sc.line(pts[0],pts[pts.length-1],sc.C.iso,2.2,[8,6]);
   else if(P.n===3&&pts.length>=3){ sc.poly(pts,sc.C.iso,sc.C.iso,1.5,0.32); } }
-function gradient(sc,p,ech){ const g=mul_(P.C,(ech||0.16)*R.diag/norm(P.C)); sc.arrow(p,add_(p,g),sc.C.iso,2.6); sc.text(add_(p,mul_(g,1.05)),'∇f',{col:sc.C.iso,size:15,bold:true,dx:6,dy:-4}); }
+function gradient(sc,p,ech){ if(!AFFICHER_GRADIENT) return; const g=mul_(P.C,(ech||0.16)*R.diag/norm(P.C)); sc.arrow(p,add_(p,g),sc.C.iso,2.6); sc.text(add_(p,mul_(g,1.05)),'∇f',{col:sc.C.iso,size:15,bold:true,dx:6,dy:-4}); }
 function aretesSommet(sc,H,p,choisi){ const L=0.14*R.diag; aretesH(P,H).aretes.forEach(e=>{ if(choisi!=null&&e.var!==choisi) return;
   const uh=mul_(e.u,1/norm(e.u)), col=e.d>1e-9?sc.C.good:sc.C.bad; sc.arrow(p,add_(p,mul_(uh,L)),col,choisi==null?3:4.5);
   const tip=add_(p,mul_(uh,L*1.08)); sc.text(tip,xs(e.var)+'↑ : '+(e.d>=0?'+':'−')+plain(Math.abs(e.d)),{col,bold:true,size:14,bg:true,dx:(uh[0]>=0?4:-4),align:uh[0]>=0?'left':'right'}); }); }
@@ -691,10 +693,11 @@ function rendreGrad(){ const k=R.reels[ST.gradV], p=R.V[k].p.slice(), H=baseHors
 $('gP').onclick=()=>{ ST.gradV=(ST.gradV-1+R.reels.length)%R.reels.length; rendre(); }; $('gN').onclick=()=>{ ST.gradV=(ST.gradV+1)%R.reels.length; rendre(); };
 
 /* ---- onglets ---- */
-function setMode(m){ ST.mode=m; stopAuto();
+function setMode(m){ if(m==='grad'&&!AFFICHER_GRADIENT) m='sim'; ST.mode=m; stopAuto();
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
   $('ctrlSim').hidden=m!=='sim'; $('ctrlExp').hidden=m!=='exp'; $('ctrlGrad').hidden=m!=='grad'; rendre(); }
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+if(!AFFICHER_GRADIENT) document.querySelector('[data-mode="grad"]').hidden=true;
 addEventListener('resize',()=>{ if(ST) rendre(); else if(PS) rendrePara(); });
 addEventListener('keydown',e=>{ if(PS&&!$('appPara').hidden&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); $('bNextP').click(); } else if(e.key==='Backspace') $('bBackP').click(); return; }
   if(!ST||$('app').hidden||/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
