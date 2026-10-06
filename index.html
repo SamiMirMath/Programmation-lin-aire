@@ -50,7 +50,7 @@ sub{font-size:.7em;line-height:0}
 .tabs{display:flex;gap:6px;margin:6px 0 10px}
 .grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:14px;align-items:start}
 @media (max-width:920px){.grid{grid-template-columns:minmax(0,1fr)}}
-canvas#cv{width:100%;aspect-ratio:4/3;display:block;background:var(--card);border:1px solid var(--border);border-radius:10px;touch-action:none}
+canvas#cv,canvas#cvp{width:100%;aspect-ratio:4/3;display:block;background:var(--card);border:1px solid var(--border);border-radius:10px;touch-action:none}
 .ctrl{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
 .chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0}
 .chip.on{box-shadow:0 0 0 2px var(--good) inset;border-color:var(--good)}
@@ -94,20 +94,23 @@ input[type=range]{width:100%}
 <body>
 <div class="wrap">
   <h1>Le simplexe en images</h1>
-  <p class="lead">Saisissez votre problème (2 ou 3 variables) : le programme déroule la méthode algébrique étape par étape. Tout se calcule dans votre navigateur.</p>
+  <p class="lead">Choisissez la méthode : le <b>simplexe</b> (algébrique, 2 ou 3 variables, étape par étape comme dans le polycopié) ou les <b>parallèles</b> (méthode graphique, 2 variables). Tout se calcule dans votre navigateur.</p>
 
   <section id="formCard" class="card">
+    <div class="row"><span class="lab">Méthode</span>
+      <button data-meth="simplexe">Simplexe (méthode algébrique)</button><button data-meth="para">Parallèles (méthode graphique, 2 variables)</button></div>
     <div class="row"><span class="lab">Nombre de variables</span>
       <button data-dim="2">2 variables (polygone)</button><button data-dim="3">3 variables (polyèdre)</button></div>
     <div class="row"><span class="lab">Objectif</span>
       <button data-sens="max">Maximiser</button><button data-sens="min">Minimiser</button></div>
     <div class="row"><span class="lab">Remplir avec un exemple</span>
-      <button data-ex="Exemple 2D">Exemple 2D</button><button data-ex="Exemple 3D">Exemple 3D</button><button data-ex="9 sommets (3D)">9 sommets (3D)</button></div>
+      <span id="exS" class="row" style="margin:0"><button data-ex="Exemple 2D">Exemple 2D</button><button data-ex="Exemple 3D">Exemple 3D</button><button data-ex="9 sommets (3D)">9 sommets (3D)</button></span>
+      <span id="exP" class="row" style="margin:0" hidden><button data-ex="Parallèles : max">Max (≤)</button><button data-ex="Parallèles : min avec ≥">Min avec ≥</button><button data-ex="Parallèles : coefficient de y négatif">Coefficient de y négatif</button></span></div>
     <div class="row"><span class="lab">Fonction économique</span><div class="coefs" id="objRow"></div></div>
     <div style="margin-top:12px"><span class="lab" style="color:var(--muted)">Contraintes (x ≥ 0 sous-entendu ; cliquer sur ≤ pour passer à ≥)</span></div>
     <div id="consRows"></div>
     <div class="row"><button id="addRow">+ Ajouter une contrainte</button></div>
-    <p class="hint">Nombres : 3, 0,5 ou 1/2 ; case vide = 0.</p>
+    <p class="hint" id="hint"></p>
     <div class="err" id="err"></div>
     <button class="primary" id="launch">Lancer ▶</button>
   </section>
@@ -144,6 +147,25 @@ input[type=range]{width:100%}
         <div class="pagebar" id="pagebar"></div>
         <div id="pageBody"></div>
       </div>
+    </div>
+  </section>
+  <section id="appPara" hidden>
+    <div class="card" id="summaryP" style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">
+      <div class="txt" id="sumTxtP"></div>
+      <div class="row" style="margin:0"><button id="editBtnP">✎ Modifier le problème</button><button id="printBtnP">Imprimer / PDF de toutes les étapes</button></div>
+    </div>
+    <div class="grid">
+      <div>
+        <canvas id="cvp"></canvas>
+        <div class="legend" id="legendP"></div>
+        <div class="ctrl"><button id="bResetP">« Départ</button><button id="bBackP">◀ Retour</button><button class="primary" id="bNextP">Étape suivante ▶</button><button id="bAutoP">▶▶ Lecture auto</button></div>
+        <div id="slidP" hidden>
+          <div class="slid"><span>f = c</span><input type="range" id="slC"><span class="small" id="slCv"></span></div>
+          <div class="small" id="infoP"></div>
+          <div class="small">Faites glisser le curseur : la parallèle f = c se déplace, avec son ordonnée à l'origine p.</div>
+        </div>
+      </div>
+      <div class="card"><div class="pagebar" id="pagebarP"></div><div id="pageBodyP"></div></div>
     </div>
   </section>
 </div>
@@ -193,7 +215,7 @@ function construireProbleme(S){
     if(rhs===null) throw new ErreurSaisie(`Contrainte ${num} : second membre manquant.`);
     if(nul) throw new ErreurSaisie(`Contrainte ${num} : aucun coefficient non nul.`);
     let aa=a, bb=rhs; if(r.op===">="){ aa=a.map(x=>x.neg()); bb=rhs.neg(); }
-    if(bb.sign()<0) throw new ErreurSaisie(`Contrainte ${num} : après mise sous la forme a·x ≤ b, le second membre est négatif : l'origine n'est pas admissible. La méthode algébrique suppose des contraintes ≤ à second membre ≥ 0 (les autres cas demandent la phase 1).`);
+    if(bb.sign()<0) throw new ErreurSaisie(`Contrainte ${num} : après mise sous la forme a·x ≤ b, le second membre est négatif : l'origine n'est pas admissible. La méthode algébrique du polycopié suppose des contraintes ≤ à second membre ≥ 0 (les autres cas demandent la phase 1).`);
     A.push(aa); b.push(bb); });
   if(!A.length) throw new ErreurSaisie("Il faut au moins une contrainte.");
   const m=A.length, nv=n+m, cint=S.sens==='max'?c:c.map(x=>x.neg());
@@ -201,6 +223,21 @@ function construireProbleme(S){
   for(let i=0;i<n;i++){ N.push(range(n).map(j=>j===i?-1:0)); B.push(0); }
   for(let k=0;k<m;k++){ N.push(A[k].map(x=>x.num())); B.push(b[k].num()); }
   return {n,m,nv,sens:S.sens,corig:c,c:cint,A,b,N,B,C:cint.map(x=>x.num())};
+}
+
+const NOMS=['x','y'];
+function construireProblemeGraphique(S){
+  const c=[0,1].map(j=>lireNombre(S.f[j],`Fonction économique, coefficient de ${NOMS[j]}`)||ZERO);
+  if(c.every(x=>x.isZero())) throw new ErreurSaisie("Fonction économique vide : entrez au moins un coefficient non nul.");
+  const rows=[];
+  S.rows.forEach((r,i)=>{ const num=i+1, a=[0,1].map(j=>lireNombre(r.a[j],`Contrainte ${num}, coefficient de ${NOMS[j]}`)||ZERO), rhs=lireNombre(r.b,`Contrainte ${num}, second membre`), nul=a.every(x=>x.isZero());
+    if(nul&&rhs===null) return; if(rhs===null) throw new ErreurSaisie(`Contrainte ${num} : second membre manquant.`); if(nul) throw new ErreurSaisie(`Contrainte ${num} : aucun coefficient non nul.`);
+    rows.push({a,op:r.op,b:rhs}); });
+  if(!rows.length) throw new ErreurSaisie("Il faut au moins une contrainte.");
+  const m=rows.length, N=[[-1,0],[0,-1]], B=[0,0];
+  rows.forEach(r=>{ const a=r.a.map(x=>x.num()), b=r.b.num(); if(r.op==='<='){N.push(a);B.push(b);} else {N.push(a.map(x=>-x));B.push(-b);} });
+  const cint=S.sens==='max'?c:c.map(x=>x.neg());
+  return {n:2,m,nv:2+m,sens:S.sens,corig:c,c:cint,rowsG:rows,N,B,C:cint.map(x=>x.num()),graphique:true};
 }
 
 /* =====================================================================
@@ -265,7 +302,9 @@ function ordonnerPlan(pts,normale){ const c=pts[0].map((_,i)=>pts.reduce((s,p)=>
 
 function construireRegion(P){
   const n=P.n; let bornee=true;
-  for(let j=0;j<n;j++){ const c=range(n).map(i=>i===j?ONE:ZERO); if(resoudre(P,c).st!=='optimal'){bornee=false;break;} }
+  if(P.graphique){ const dirs=[]; P.N.forEach(nr=>{ const nn=norm(nr), u=[-nr[1]/nn,nr[0]/nn]; dirs.push(u,[-u[0],-u[1]]); });
+    bornee=!dirs.some(d=>P.N.every(nr=>dot(nr,d)<=1e-9)); }
+  else for(let j=0;j<n;j++){ const c=range(n).map(i=>i===j?ONE:ZERO); if(resoudre(P,c).st!=='optimal'){bornee=false;break;} }
   let Nd=P.N, Bd=P.B;
   if(!bornee){ let mx=1; enumSommets(P.N,P.B,n).forEach(p=>p.forEach(x=>{mx=Math.max(mx,x);})); const M=2.5*mx+1;
     Nd=P.N.concat(range(n).map(i=>range(n).map(j=>i===j?1:0))); Bd=P.B.concat(Array(n).fill(M)); }
@@ -281,6 +320,7 @@ function construireRegion(P){
     V.sort((a,b)=>{ if(a.reel!==b.reel) return a.reel?-1:1; const na=Math.round(norm(a.p)*1e6),nb=Math.round(norm(b.p)*1e6); if(na!==nb) return na-nb;
       for(let i=0;i<n;i++){ const d=Math.round(a.p[i]*1e6)-Math.round(b.p[i]*1e6); if(d) return d; } return 0; });
   }
+  if(!V.length) return {P,n,V:[],empty:true};
   const R={P,n,bornee,Nd,Bd,V};
   const lo=range(n).map(i=>Math.min(...V.map(v=>v.p[i]))), hi=range(n).map(i=>Math.max(...V.map(v=>v.p[i])));
   R.lo=lo; R.hi=hi; R.ext=lo.map((x,i)=>Math.max(hi[i]-x,1e-9)); R.diag=norm(R.ext);
@@ -331,9 +371,12 @@ const lab=i=>i<20?String.fromCharCode(0x2460+i):String(i+1);
    6. ÉTAT DE L'APPLICATION
    ===================================================================== */
 const EXEMPLES={
-  "Exemple 2D":{n:2,sens:"max",f:["100","120",""],rows:[{a:["3","4",""],op:"<=",b:"4200"},{a:["1","3",""],op:"<=",b:"2400"},{a:["2","2",""],op:"<=",b:"2600"}]},
-  "Exemple 3D":{n:3,sens:"max",f:["6","7","8"],rows:[{a:["1","2","1"],op:"<=",b:"100"},{a:["3","4","2"],op:"<=",b:"120"},{a:["2","6","4"],op:"<=",b:"200"}]},
-  "9 sommets (3D)":{n:3,sens:"max",f:["2","3","1"],rows:[{a:["1","0","0"],op:"<=",b:"4"},{a:["0","1","0"],op:"<=",b:"5"},{a:["0","0","1"],op:"<=",b:"6"},{a:["1","1","1"],op:"<=",b:"10"}]}
+  "Parallèles : max":{meth:"para",n:2,sens:"max",f:["100","120",""],rows:[{a:["3","4",""],op:"<=",b:"4200"},{a:["1","3",""],op:"<=",b:"2400"},{a:["2","2",""],op:"<=",b:"2600"}]},
+  "Parallèles : min avec ≥":{meth:"para",n:2,sens:"min",f:["2","3",""],rows:[{a:["1","1",""],op:">=",b:"4"},{a:["1","3",""],op:">=",b:"6"},{a:["1","0",""],op:"<=",b:"8"}]},
+  "Parallèles : coefficient de y négatif":{meth:"para",n:2,sens:"max",f:["3","-2",""],rows:[{a:["1","0",""],op:"<=",b:"5"},{a:["0","1",""],op:">=",b:"1"},{a:["1","1",""],op:"<=",b:"8"}]},
+  "Exemple 2D":{meth:"simplexe",n:2,sens:"max",f:["100","120",""],rows:[{a:["3","4",""],op:"<=",b:"4200"},{a:["1","3",""],op:"<=",b:"2400"},{a:["2","2",""],op:"<=",b:"2600"}]},
+  "Exemple 3D":{meth:"simplexe",n:3,sens:"max",f:["6","7","8"],rows:[{a:["1","2","1"],op:"<=",b:"100"},{a:["3","4","2"],op:"<=",b:"120"},{a:["2","6","4"],op:"<=",b:"200"}]},
+  "9 sommets (3D)":{meth:"simplexe",n:3,sens:"max",f:["2","3","1"],rows:[{a:["1","0","0"],op:"<=",b:"4"},{a:["0","1","0"],op:"<=",b:"5"},{a:["0","0","1"],op:"<=",b:"6"},{a:["1","1","1"],op:"<=",b:"10"}]}
 };
 let S=JSON.parse(JSON.stringify(EXEMPLES["Exemple 2D"]));     // état du formulaire
 let P=null, R=null, scene=null;                                  // problème, région, scène
@@ -346,7 +389,12 @@ function dessinerFormulaire(){
   const n=S.n;
   document.querySelectorAll('[data-dim]').forEach(b=>b.classList.toggle('on',+b.dataset.dim===n));
   document.querySelectorAll('[data-sens]').forEach(b=>b.classList.toggle('on',b.dataset.sens===S.sens));
-  const coefHtml=(vals,onchange)=>range(n).map(j=>`<input inputmode="decimal" data-j="${j}" value="${vals[j]||''}" aria-label="coefficient de x${j+1}"> ${X(j+1)}${j<n-1?' +':''}`).join(' ');
+  const para=S.meth==='para', NM=j=>para?`<i class="v">${['x','y'][j]}</i>`:X(j+1);
+  document.querySelectorAll('[data-meth]').forEach(b=>b.classList.toggle('on',b.dataset.meth===(S.meth||'simplexe')));
+  document.querySelector('[data-dim="3"]').disabled=para; $('exS').hidden=para; $('exP').hidden=!para;
+  $('hint').textContent=para?"Méthode graphique : toutes les contraintes ≤ ou ≥ sont acceptées (second membre quelconque). Nombres : 3, 0,5 ou 1/2 ; case vide = 0."
+    :"Nombres : 3, 0,5 ou 1/2 ; case vide = 0. Méthode du polycopié : contraintes ≤ à second membre ≥ 0 (une contrainte ≥ est acceptée si elle le devient après multiplication par −1).";
+  const coefHtml=(vals,onchange)=>range(n).map(j=>`<input inputmode="decimal" data-j="${j}" value="${vals[j]||''}" aria-label="coefficient"> ${NM(j)}${j<n-1?' +':''}`).join(' ');
   $('objRow').innerHTML='<b>f&nbsp;=</b> '+coefHtml(S.f);
   $('objRow').querySelectorAll('input').forEach(inp=>inp.oninput=()=>{S.f[+inp.dataset.j]=inp.value;});
   const box=$('consRows'); box.innerHTML='';
@@ -359,6 +407,7 @@ function dessinerFormulaire(){
     d.querySelector('.del').onclick=()=>{ if(S.rows.length>1){S.rows.splice(i,1);dessinerFormulaire();} };
     box.appendChild(d); });
   $('addRow').disabled=S.rows.length>=MAXL; }
+document.querySelectorAll('[data-meth]').forEach(b=>b.onclick=()=>{ S.meth=b.dataset.meth; if(S.meth==='para'&&S.n===3){ S.n=2; } $('err').textContent=''; dessinerFormulaire(); });
 document.querySelectorAll('[data-dim]').forEach(b=>b.onclick=()=>{ S.n=+b.dataset.dim; S.f=(S.f.concat(['','',''])).slice(0,3); S.rows.forEach(r=>{r.a=(r.a.concat(['','',''])).slice(0,3);}); $('err').textContent=''; dessinerFormulaire(); });
 document.querySelectorAll('[data-sens]').forEach(b=>b.onclick=()=>{ S.sens=b.dataset.sens; dessinerFormulaire(); });
 document.querySelectorAll('[data-ex]').forEach(b=>b.onclick=()=>{ S=JSON.parse(JSON.stringify(EXEMPLES[b.dataset.ex])); $('err').textContent=''; dessinerFormulaire(); });
@@ -368,8 +417,9 @@ $('editBtn').onclick=()=>{ stopAuto(); $('app').hidden=true; $('formCard').hidde
 $('printBtn').onclick=imprimerRapport;
 
 function lancer(){
+  if(S.meth==='para') return lancerPara();
   let p; try{ p=construireProbleme(S); }catch(e){ if(e instanceof ErreurSaisie){ $('err').textContent='✗ '+e.message; return; } throw e; }
-  $('err').textContent=''; P=p; R=construireRegion(P);
+  $('err').textContent=''; P=p; R=construireRegion(P); PS=null; $('appPara').hidden=true;
   ST={hist:[etatInitial(P)],sub:0,n2:null,pending:null,unb:false,chosen:null,vue:null,anim:null,auto:false,timer:null,mode:'sim',
       expPt:centre(),gradV:0};
   scene=new Scene($('cv'),R,P);
@@ -418,15 +468,15 @@ class Scene{
   // décor statique
   decor(opts){ const R=this.R,P=this.P,c=this.g,C=this.C,n=this.n; const grad=opts.grad;
     if(n===2) this.decor2D(grad); else this.decor3D(grad); }
-  decor2D(grad){ const R=this.R,P=this.P,c=this.g,C=this.C;
+  grille2D(){ const c=this.g,C=this.C;
     const ticks=(lo,hi,ax)=>{ const rg=hi-lo, raw=rg/6, mag=Math.pow(10,Math.floor(Math.log10(raw))), st=[1,2,2.5,5,10].map(m=>m*mag).find(s=>s>=raw); const out=[]; for(let v=Math.ceil(lo/st)*st;v<=hi+1e-9;v+=st) out.push(Math.round(v/st)*st); return out; };
     const xt=ticks(this.lo[0],this.hi[0]), yt=ticks(this.lo[1],this.hi[1]);
     c.font='12px system-ui'; c.fillStyle=C.mut; c.strokeStyle=C.grid; c.lineWidth=1;
     xt.forEach(v=>{ const a=this.proj([v,0]); c.beginPath(); c.moveTo(a[0],30); c.lineTo(a[0],this.H-30); c.stroke(); c.textAlign='center'; c.fillText(String(Math.round(v*100)/100),a[0],this.H-12); });
     yt.forEach(v=>{ const a=this.proj([0,v]); c.beginPath(); c.moveTo(35,a[1]); c.lineTo(this.W-35,a[1]); c.stroke(); c.textAlign='right'; c.fillText(String(Math.round(v*100)/100),32,a[1]+4); });
     c.textAlign='right'; c.fillStyle=C.mut; c.fillText('x₁',this.W-8,this.H-12); c.textAlign='left'; c.fillText('x₂',8,22);
-    // axes
-    this.line([this.lo[0],0],[this.hi[0],0],C.axis,1.2); this.line([0,this.lo[1]],[0,this.hi[1]],C.axis,1.2);
+    this.line([this.lo[0],0],[this.hi[0],0],C.axis,1.2); this.line([0,this.lo[1]],[0,this.hi[1]],C.axis,1.2); }
+  decor2D(grad){ const R=this.R,P=this.P,c=this.g,C=this.C; this.grille2D();
     // polygone + dégradé selon f
     const pmin=R.V.reduce((a,v)=>dot(P.C,v.p)<dot(P.C,a.p)?v:a).p; const k=(R.fmax-R.fmin)/dot(P.C,P.C);
     const g0=this.proj(pmin), g1=this.proj(add_(pmin,mul_(P.C,k)));
@@ -454,7 +504,7 @@ class Scene{
   // rendu complet
   render(cv,fn,opts){ opts=opts||{}; const dpr=opts.dpr||window.devicePixelRatio||1; const w=opts.w||cv.clientWidth||800, h=opts.h||Math.round(w*0.75);
     cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr); this.g=cv.getContext('2d'); this.g.setTransform(dpr,0,0,dpr,0,0); this.C=couleurs(); this.setup(w,h);
-    this.g.clearRect(0,0,w,h); this.decor(opts); if(fn) fn(this); } }
+    this.g.clearRect(0,0,w,h); if(!opts.nodecor) this.decor(opts); if(fn) fn(this); } }
 
 /* =====================================================================
    8. DESSIN DYNAMIQUE (point, chemin, flèches…) selon le mode
@@ -481,7 +531,9 @@ function dessinSim(sc,ctx,Pt){ const s=ctx.hist[ctx.hist.length-1], A=position(s
   return {pt,ent:(info&&sub>=1)?info.ent:null,sort:(info&&sub>=3)?info.sort:null}; }
 const fdisp=g=>P.sens==='max'?g:-g;
 
-
+/* =====================================================================
+   9. NARRATION PAR ÉTAPES (comme dans le polycopié)
+   ===================================================================== */
 function blocsPivot(s,info,n2,subMax,unb,instruction){
   const g=P.sens==='max'?'f':'g', n=P.n, blocs=[]; const cand=candidates(s);
   let h=`<h3>Programme de base n°${s.pivots+1} — sommet ${nomSommet(position(s,n))}${P.sens==='min'?' <small>(on maximise g = −f)</small>':''}</h3><div class="eqs">`;
@@ -643,8 +695,9 @@ function setMode(m){ ST.mode=m; stopAuto();
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
   $('ctrlSim').hidden=m!=='sim'; $('ctrlExp').hidden=m!=='exp'; $('ctrlGrad').hidden=m!=='grad'; rendre(); }
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
-addEventListener('resize',()=>{ if(ST) rendre(); });
-addEventListener('keydown',e=>{ if(!ST||$('app').hidden||/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
+addEventListener('resize',()=>{ if(ST) rendre(); else if(PS) rendrePara(); });
+addEventListener('keydown',e=>{ if(PS&&!$('appPara').hidden&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); $('bNextP').click(); } else if(e.key==='Backspace') $('bBackP').click(); return; }
+  if(!ST||$('app').hidden||/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
   if(ST.mode==='sim'){ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); $('bNext').click(); } else if(e.key==='Backspace'){ $('bBack').click(); }
     else if(e.key==='ArrowLeft'&&$('pp')&&!$('pp').disabled) $('pp').click(); else if(e.key==='ArrowRight'&&$('ps')&&!$('ps').disabled) $('ps').click(); } });
 
@@ -661,6 +714,163 @@ function imprimerRapport(){
     const blocs=blocsPivot(rec.s,rec.info,rec.n2,rec.sub,rec.unb,false);
     html+=`<div class="pg"><p class="small">Page ${k+1} / ${recs.length}</p><img src="${cv.toDataURL('image/png')}" alt="">`+blocs.map(b=>`<div class="bloc">${b.html}</div>`).join('')+'</div>'; });
   box.innerHTML=html; setTimeout(()=>window.print(),150); }
+
+/* =====================================================================
+   12. MÉTHODE DES PARALLÈLES (graphique, 2 variables)
+   ===================================================================== */
+const VX='<i class="v">x</i>', VY='<i class="v">y</i>';
+let PS=null, PA=null, sceneP=null;
+function termeXY(a,b){ const out=[]; let first=true;
+  [[a,VX],[b,VY]].forEach(([c,v])=>{ if(c.isZero()) return; const p=c.sign()>0; out.push((first?(p?'':'−'):(p?' + ':' − '))+(c.isUnit()?'':fAbs(c)+'&thinsp;')+v); first=false; });
+  return out.join('')||'0'; }
+function mxp(m,p){ const mx=m.isZero()?'':((m.isUnit()?(m.sign()<0?'−':''):fSig(m)+'&thinsp;')+VX);
+  if(mx==='') return fSig(p); if(p.isZero()) return mx; return mx+(p.sign()>0?' + ':' − ')+fAbs(p); }
+const descContrainte=i=>i===0?'x = 0':(i===1?'y = 0':`(${i-1})`);
+
+function analyserPara(){
+  const a=P.corig[0].num(), b=P.corig[1].num(), f=p=>a*p[0]+b*p[1], mx=P.sens==='max';
+  const real=R.reels.map(k=>R.V[k]), vals=real.map(v=>f(v.p));
+  const best=mx?Math.max(...vals):Math.min(...vals), eps=1e-7*Math.max(1,Math.abs(best));
+  const opt=real.filter((v,i)=>Math.abs(vals[i]-best)<eps);
+  let nonborne=false;
+  if(!R.bornee){ const dirs=[]; P.N.forEach(nr=>{ const nn=norm(nr), u=[-nr[1]/nn,nr[0]/nn]; dirs.push(u,[-u[0],-u[1]]); });
+    nonborne=dirs.some(d=>P.N.every(nr=>dot(nr,d)<=1e-9)&&(mx?f(d)>1e-9:f(d)<-1e-9)); }
+  const mg=R.ext.map(x=>0.16*x), lo=R.lo.map((x,i)=>x-mg[i]), hi=R.hi.map((x,i)=>x+mg[i]);
+  const fc=[[lo[0],lo[1]],[lo[0],hi[1]],[hi[0],lo[1]],[hi[0],hi[1]]].map(f), vlo=Math.min(...fc), vhi=Math.max(...fc);
+  const fmin=Math.min(...vals), fmax=Math.max(...vals), rng=(fmax-fmin)||Math.max(1,Math.abs(best));
+  let c0,c1;
+  if(!nonborne){ c1=best; c0=mx?Math.min(best+0.5*rng,best+0.85*Math.max(vhi-best,0.2*rng)):Math.max(best-0.5*rng,best-0.85*Math.max(best-vlo,0.2*rng)); }
+  else { c0=best; c1=mx?best+0.7*Math.max(vhi-best,0.3*rng):best-0.7*Math.max(best-vlo,0.3*rng); }
+  return {a,b,f,mx,real,vals,best,opt,nonborne,vlo,vhi,fmin,fmax,c0,c1}; }
+const secInterne=c=>R.section(P.sens==='max'?c:-c);
+
+/* ---- textes des étapes ---- */
+function htmlContrainte(r,i){
+  const [a1,a2]=r.a, ineq=r.op==='<='?'≤':'≥';
+  let h=`<div class="step">Contrainte (${i+1}) : ${termeXY(a1,a2)} ${ineq} ${fSig(r.b)}</div>`;
+  if(i===0) h=`<div class="small">On travaille dans le quart de plan x ≥ 0, y ≥ 0.</div>`+h;
+  let cote;
+  if(!a2.isZero()){ const m=a1.div(a2).neg(), p=r.b.div(a2), flip=a2.sign()<0, ok=(r.op==='<=')!==flip, op2=ok?'≤':'≥';
+    h+=`<div>On isole ${VY}${flip?' <span class="small">(on divise par un nombre négatif : le sens de l\'inégalité s\'inverse)</span>':''} : <b>${VY} ${op2} ${mxp(m,p)}</b></div>`;
+    h+=`<div>La droite <b>${VY} = ${mxp(m,p)}</b> passe par (0 ; ${fSig(p)})${a1.isZero()?' et est horizontale':` et par (${fSig(r.b.div(a1))} ; 0)`}.</div>`;
+    cote=ok?'en dessous':'au-dessus'; h+=`<div class="ok">La région admissible est <b>${cote}</b> de cette droite.</div>`; }
+  else { const flip=a1.sign()<0, ok=(r.op==='<=')!==flip, v=r.b.div(a1);
+    h+=`<div>C'est la droite verticale <b>${VX} = ${fSig(v)}</b> : ${VX} ${ok?'≤':'≥'} ${fSig(v)}.</div><div class="ok">La région est <b>${ok?'à gauche':'à droite'}</b> de cette droite.</div>`; }
+  const t=r.b.isZero()?[ONE,ONE]:[ZERO,ZERO], val=a1.mul(t[0]).add(a2.mul(t[1])), vrai=r.op==='<='?val.cmp(r.b)<=0:val.cmp(r.b)>=0;
+  h+=`<div class="small">Vérification avec le point (${fSig(t[0])} ; ${fSig(t[1])}) : ${fSig(val)} ${ineq} ${fSig(r.b)} est ${vrai?'vrai':'faux'} ⇒ la région est ${vrai?'du côté de':'à l\'opposé de'} ce point.</div>`;
+  return h; }
+function htmlRegion(){
+  let h=`<div class="step">Zone admissible</div><div>C'est l'intersection de tous les demi-plans : un ${R.bornee?'polygone':'domaine <b>non borné</b> (il se prolonge à l\'infini ; cadre en pointillés)'}. Ses sommets :</div><div class="eqs">`;
+  R.reels.forEach((k,idx)=>{ const v=R.V[k]; h+=`<div class="eq"><b>${lab(idx)}</b> (${plain(v.p[0])} ; ${plain(v.p[1])}) <span class="small">← ${v.act.map(descContrainte).join(' et ')}</span></div>`; });
+  return h+'</div>'; }
+function htmlFamille(){ const a=P.corig[0], b=P.corig[1];
+  let h=`<div class="step">La fonction économique et ses parallèles</div><div>f = ${termeXY(a,b)}</div>`;
+  if(!b.isZero()){ const m=a.div(b).neg();
+    h+=`<div>Pour chaque valeur c, l'équation f = c est une droite : <b>${VY} = ${mxp(m,ZERO)} + p</b> avec <b>p = c / ${fSig(b)}</b>.</div>`
+     +`<div>Toutes ont la <b>même pente m = ${fSig(m)}</b> : ce sont des droites <b>parallèles</b>. Seule l'ordonnée à l'origine <b>p</b> (le point où la droite coupe l'axe des ${VY}) change avec c.</div>`; }
+  else { h+=`<div>f = c ⇔ ${VX} = c / ${fSig(a)} : des droites <b>verticales</b>, toutes parallèles à l'axe des ${VY}. Seule l'abscisse change avec c.</div>`; }
+  return h; }
+function sensTexte(){ const b=P.corig[1], a=P.corig[0], mx=P.sens==='max';
+  if(!b.isZero()){ const haut=mx===(b.sign()>0); 
+    return {haut,html:`<div class="step ent">Dans quel sens faut-il déplacer la parallèle ?</div>`
+     +(b.sign()>0?`<div>Ici le coefficient de ${VY} est positif : <b>p = c / ${fSig(b)}</b> augmente quand c augmente (équation de la forme ${VY} = m${VX} + p).</div>`
+                 :`<div>Ici le coefficient de ${VY} est négatif : <b>p = c / ${fSig(b)}</b> diminue quand c augmente (équation de la forme ${VY} = m${VX} − p').</div>`)
+     +`<div class="ok">Pour ${mx?'MAXIMISER':'MINIMISER'} f, on cherche la parallèle dont l'ordonnée à l'origine p est la plus <b>${haut?'HAUTE':'BASSE'}</b> parmi celles qui touchent encore la région.</div>`
+     +`<div class="small">Astuce : si p est très ${haut?'grand':'négatif'}, la droite passe ${haut?'au-dessus':'au-dessous'} de la région sans la toucher ; on la fait ${haut?'descendre':'monter'} jusqu'au premier contact.</div>`}; }
+  const droite=mx===(a.sign()>0);
+  return {haut:droite,html:`<div class="step ent">Dans quel sens déplacer la parallèle ?</div><div>Les droites sont verticales : on regarde l'abscisse. Pour ${mx?'maximiser':'minimiser'} f, on cherche la parallèle la plus à <b>${droite?'DROITE':'GAUCHE'}</b> qui touche encore la région.</div>`}; }
+function etapesPara(){ const st=[]; P.rowsG.forEach((r,i)=>st.push({kind:'c',html:htmlContrainte(r,i)}));
+  st.push({kind:'region',html:htmlRegion()}); st.push({kind:'fam',html:htmlFamille()}); st.push({kind:'sens',html:sensTexte().html});
+  const A=PA;
+  st.push({kind:'glisse',html:A.nonborne
+    ?`<div class="step out">On fait glisser la parallèle dans le sens favorable</div><div>La droite reste en contact avec la région même quand on l'éloigne beaucoup : elle ne la quitte jamais.</div>`
+    :`<div class="step out">On fait glisser la parallèle</div><div>On part d'une valeur de c très ${A.mx?'grande':'petite'} (p = ${plain(P.corig[1].isZero()?A.c0/A.a:A.c0/A.b)}) : la droite ne touche pas la région. On la rapproche jusqu'au <b>premier contact</b>.</div>`});
+  let fin; const best=plain(A.best);
+  if(A.nonborne) fin=`<div class="warn">Problème NON BORNÉ : on peut pousser la parallèle aussi loin qu'on veut tout en restant dans la région ; f ${A.mx?'augmente':'diminue'} indéfiniment (pas d'optimum).</div>`;
+  else if(A.opt.length>1){ const ids=A.opt.map(v=>lab(R.etiquette[R.V.indexOf(v)])).join(' et ');
+    fin=`<div class="step">Conclusion</div><div class="ok">La parallèle touche la région sur tout le côté ${ids} : <b>infinité de solutions</b> (tout le segment).</div><div class="ok" style="font-size:1.15rem">${A.mx?'Maximum':'Minimum'} de f = ${best}</div>`; }
+  else { const v=A.opt[0], id=lab(R.etiquette[R.V.indexOf(v)]);
+    fin=`<div class="step">Conclusion</div><div class="ok">Premier contact en <b>${id}</b> (${plain(v.p[0])} ; ${plain(v.p[1])}) : c'est la solution optimale.</div><div class="ok" style="font-size:1.15rem">${A.mx?'Maximum':'Minimum'} de f = ${best}</div>`; }
+  fin+=`<div class="small" style="margin-top:6px">Vérification : valeur de f à chaque sommet</div><div class="eqs">`+A.real.map((v,i)=>`<div class="eq ${A.opt.includes(v)&&!A.nonborne?'hl':''}">${lab(R.etiquette[R.V.indexOf(v)])} (${plain(v.p[0])} ; ${plain(v.p[1])}) → f = ${plain(A.vals[i])}</div>`).join('')+'</div>';
+  st.push({kind:'fin',html:fin}); return st; }
+
+/* ---- dessin ---- */
+const hatchCache={};
+function hachure(col){ if(hatchCache[col]) return hatchCache[col]; const c=document.createElement('canvas'); c.width=c.height=10; const g=c.getContext('2d'); g.strokeStyle=col; g.globalAlpha=.55; g.lineWidth=1.4; g.beginPath(); g.moveTo(0,10); g.lineTo(10,0); g.moveTo(-2,2); g.lineTo(2,-2); g.moveTo(8,12); g.lineTo(12,8); g.stroke(); return hatchCache[col]=c.getContext('2d').createPattern(c,'repeat'); }
+function clipHP(poly,Nn,Bb){ const out=[]; for(let i=0;i<poly.length;i++){ const a=poly[i], b=poly[(i+1)%poly.length], fa=dot(Nn,a)-Bb, fb=dot(Nn,b)-Bb; if(fa>=0) out.push(a);
+  if((fa>=0)!==(fb>=0)){ const t=fa/(fa-fb); out.push(add_(a,mul_(sub_(b,a),t))); } } return out; }
+function ligneF(sc,c,col,w,dash){ const a=PA.a,b=PA.b, lo=sc.inv2D(0,sc.H), hi=sc.inv2D(sc.W,0);
+  if(Math.abs(b)>1e-12) sc.line([lo[0],(c-a*lo[0])/b],[hi[0],(c-a*hi[0])/b],col,w,dash); else sc.line([c/a,lo[1]],[c/a,hi[1]],col,w,dash); }
+function drawPara(sc,d){ const c=sc.g,C=sc.C,A=PA; sc.grille2D();
+  const view=[sc.inv2D(0,sc.H),sc.inv2D(sc.W,sc.H),sc.inv2D(sc.W,0),sc.inv2D(0,0)];
+  // domaine x>=0, y>=0 (zone exclue en gris)
+  [0,1].forEach(i=>{ const poly=clipHP(view,P.N[i],P.B[i]); if(poly.length>2) sc.poly(poly,hachure('#888'),null); });
+  for(let i=0;i<d.nc;i++){ const col=PAL[i%PAL.length], poly=clipHP(view,P.N[2+i],P.B[2+i]); if(poly.length>2) sc.poly(poly,hachure(col),null);
+    const nr=P.N[2+i], nn=norm(nr), p0=mul_(nr,P.B[2+i]/dot(nr,nr)), perp=[-nr[1]/nn,nr[0]/nn], L=30*R.diag; sc.line(add_(p0,mul_(perp,-L)),add_(p0,mul_(perp,L)),col,2.6);
+    const lp=add_(p0,mul_(perp,0.0)); sc.text(lp,'('+(i+1)+')',{col,bold:true,size:15,dx:6,dy:-6,bg:true}); }
+  // axes épais
+  sc.line([0,view[0][1]],[0,view[3][1]],C.axis,1.6); sc.line([view[0][0],0],[view[2][0],0],C.axis,1.6);
+  if(d.region){ sc.poly(R.V.map(v=>v.p),'rgba(23,120,74,0.22)',C.fg,1.8,1); R.reels.forEach((k,idx)=>{ const p=R.V[k].p; sc.dotP(p,C.bg,5.5); const a=sc.proj(p); c.lineWidth=1.6; c.strokeStyle=C.fg; c.beginPath(); c.arc(a[0],a[1],5.5,0,7); c.stroke();
+      sc.text(p,lab(idx)+' ('+plain(p[0])+' ; '+plain(p[1])+')',{dx:8,dy:-8,size:12.5,bg:true}); }); }
+  if(d.family){ const lo=A.vlo, hi=A.vhi, raw=(hi-lo)/9, mag=Math.pow(10,Math.floor(Math.log10(raw))), st=[1,2,2.5,5,10].map(m=>m*mag).find(s=>s>=raw); let k=0;
+    for(let v=Math.ceil(lo/st)*st; v<=hi+1e-9; v+=st,k++){ ligneF(sc,v,'rgba(214,51,108,0.35)',1.1,[5,5]);
+      if(Math.abs(A.b)>1e-12&&k%2===0){ const p=v/A.b, view0=sc.inv2D(0,sc.H); if(p>view0[1]&&p<sc.inv2D(0,0)[1]-0.03*R.diag){ sc.text([0,p],'p = '+nb(p),{size:11,col:C.iso,dx:6,dy:-4,bg:true}); } } } }
+  if(d.sweep!=null){ const cc=d.sweep; ligneF(sc,cc,d.contact?C.good:C.iso,4,null);
+    if(Math.abs(A.b)>1e-12){ const p=cc/A.b; sc.dotP([0,p],d.contact?C.good:C.iso,6.5); sc.text([0,p],'p = '+nb(p),{bold:true,size:13,col:d.contact?C.good:C.iso,dx:10,dy:-8,bg:true}); }
+    sc.text(sc.inv2D(sc.W*0.62,sc.H*0.12),'f = '+nb(cc),{bold:true,size:15,col:d.contact?C.good:C.iso,bg:true}); }
+  if(d.sens){ const s=sensTexte(), nrm=norm([A.a,A.b]); const dirv=mul_([A.a,A.b],(A.mx?1:-1)/nrm); const base=R.reels.length?centre():[0,0];
+    sc.arrow(base,add_(base,mul_(dirv,0.16*R.diag)),C.iso,3.2); sc.text(add_(base,mul_(dirv,0.17*R.diag)),A.mx?'f augmente':'f diminue (on minimise)',{size:12,col:C.iso,bold:true,dx:6,dy:-4,bg:true}); }
+  if(d.contact&&!A.nonborne){ if(A.opt.length>1){ sc.line(A.opt[0].p,A.opt[A.opt.length-1].p,C.good,7,null); }
+    A.opt.forEach(v=>sc.dotP(v.p,C.good,9)); } }
+
+function etatDessinPara(){ const m=P.rowsG.length, k=PS.k; return {nc:Math.min(k,m),region:k>m,family:k>m+1,sens:k>m+2,sweep:(k>m+3||(PS.manual&&k>m+1))?PS.cnow:null,contact:PS.contact}; }
+function rendrePara(){ if(!PS) return; const m=P.rowsG.length, k=PS.k, total=PS.steps.length;
+  const intro=`<div class="bloc"><h3>Méthode des parallèles</h3><div>${P.sens==='max'?'<b>Maximiser</b>':'<b>Minimiser</b>'} f = ${termeXY(P.corig[0],P.corig[1])}</div><div class="small">sous ${m} contrainte${m>1?'s':''} ; x ≥ 0, y ≥ 0.</div><div class="small">Cliquez sur « Étape suivante » : on trace les contraintes, on délimite la zone admissible, puis on fait glisser une droite parallèle jusqu'au premier contact.</div></div>`;
+  $('pageBodyP').innerHTML=(k===0?intro:'')+PS.steps.slice(0,k).map(s=>`<div class="bloc">${s.html}</div>`).join('');
+  $('pagebarP').innerHTML=`<b>Étape ${k} / ${total}</b>`; if(k>0) $('pageBodyP').scrollTo({top:1e6,behavior:'smooth'});
+  sceneP.render($('cvp'),sc=>drawPara(sc,etatDessinPara()),{nodecor:true});
+  $('bBackP').disabled=!!PS.anim||k===0; $('bNextP').disabled=!!PS.anim||k>=total; $('bAutoP').textContent=PS.auto?'■ Pause':'▶▶ Lecture auto';
+  $('slidP').hidden=!(k>m+1); if(k>m+1){ const sl=$('slC'); sl.min=PA.vlo; sl.max=PA.vhi; sl.step=(PA.vhi-PA.vlo)/500; sl.value=PS.cnow; $('slCv').textContent=nb(PS.cnow);
+    const A=PA, cc=PS.cnow, sec=secInterne(cc), touche=Math.abs(cc-A.best)<1e-6*Math.max(1,Math.abs(A.best)), coupe=sec.length>0;
+    const p=Math.abs(A.b)>1e-12?` ; p = ${nb(cc/A.b)}`:'';
+    $('infoP').innerHTML=`f = c = ${nb(cc)}${p} → `+(touche&&!A.nonborne?'<b class="ok">la parallèle ne fait que TOUCHER la région : c\'est l\'optimum</b>':(coupe?'la parallèle <b>coupe</b> la région (on peut encore améliorer f en la déplaçant)':'la parallèle <b>ne touche pas</b> la région')); } }
+function avancerPara(){ if(PS.anim) return; const m=P.rowsG.length, total=PS.steps.length; if(PS.k>=total){ stopAutoP(); return; }
+  PS.k++; PS.manual=false; const k=PS.k;
+  if(k===m+2||k===m+3){ PS.cnow=PA.c0; PS.contact=false; }
+  if(k===m+4){ PS.contact=false; PS.cnow=PA.c0; PS.anim={t0:performance.now(),dur:2600}; rendrePara(); requestAnimationFrame(tickPara); return; }
+  if(k>=m+5){ PS.cnow=PA.c1; PS.contact=true; }
+  rendrePara(); if(PS.auto) planifierAutoP(); }
+function tickPara(now){ const a=PS.anim; if(!a) return; const t=Math.min(1,(now-a.t0)/a.dur), q=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2; PS.cnow=PA.c0+(PA.c1-PA.c0)*q;
+  if(t<1){ rendrePara(); requestAnimationFrame(tickPara); } else { PS.anim=null; PS.contact=!PA.nonborne; PS.cnow=PA.c1; rendrePara(); if(PS.auto) planifierAutoP(); } }
+function planifierAutoP(){ clearTimeout(PS.timer); PS.timer=setTimeout(()=>{ if(PS.auto&&!PS.anim) avancerPara(); },1500); }
+function stopAutoP(){ if(!PS) return; PS.auto=false; clearTimeout(PS.timer); }
+function retourPara(){ if(PS.anim||PS.k===0) return; stopAutoP(); const m=P.rowsG.length; PS.k--; PS.manual=false; const k=PS.k;
+  PS.contact=k>=m+5; PS.cnow=k>=m+5?PA.c1:PA.c0; rendrePara(); }
+function reinitPara(){ if(PS.anim) return; stopAutoP(); PS.k=0; PS.contact=false; PS.manual=false; PS.cnow=PA.c0; rendrePara(); }
+$('bNextP').onclick=()=>{ stopAutoP(); avancerPara(); }; $('bBackP').onclick=retourPara; $('bResetP').onclick=reinitPara;
+$('bAutoP').onclick=()=>{ if(PS.auto){ stopAutoP(); rendrePara(); } else { PS.auto=true; avancerPara(); } };
+$('slC').oninput=e=>{ PS.manual=true; PS.cnow=+e.target.value; PS.contact=Math.abs(PS.cnow-PA.best)<1e-6*Math.max(1,Math.abs(PA.best))&&!PA.nonborne; rendrePara(); };
+$('editBtnP').onclick=()=>{ stopAutoP(); $('appPara').hidden=true; $('formCard').hidden=false; PS=null; };
+
+function lancerPara(){
+  let p; try{ p=construireProblemeGraphique(S); }catch(e){ if(e instanceof ErreurSaisie){ $('err').textContent='✗ '+e.message; return; } throw e; }
+  const reg=construireRegion(p); if(reg.empty||!reg.V.length){ $('err').textContent="✗ Région admissible vide : aucun point ne vérifie toutes les contraintes (vérifiez les signes ≤ / ≥)."; return; }
+  $('err').textContent=''; P=p; R=reg; ST=null; PA=analyserPara(); sceneP=new Scene($('cvp'),R,P);
+  PS={k:0,cnow:PA.c0,contact:false,manual:false,anim:null,auto:false,timer:null,steps:etapesPara()};
+  $('formCard').hidden=true; $('app').hidden=true; $('appPara').hidden=false;
+  $('sumTxtP').innerHTML=`<b>${P.sens==='max'?'Maximiser':'Minimiser'}</b> f = ${termeXY(P.corig[0],P.corig[1])} &nbsp;·&nbsp; ${P.rowsG.length} contrainte${P.rowsG.length>1?'s':''} &nbsp;·&nbsp; méthode des parallèles`;
+  $('legendP').innerHTML=P.rowsG.map((r,k)=>`<span><b class="sw" style="background:${PAL[k%PAL.length]}"></b>(${k+1}) ${termeXY(r.a[0],r.a[1])} ${r.op==='<='?'≤':'≥'} ${fSig(r.b)}</span>`).join('')+(R.bornee?'':'<span>⚠ région non bornée : cadre d\'affichage en pointillés</span>');
+  rendrePara(); }
+function imprimerPara(){ const m=P.rowsG.length, box=$('rapport'), total=PS.steps.length;
+  const snap=(k,cnow,contact)=>{ const save=[PS.k,PS.cnow,PS.contact,PS.manual,PS.anim]; PS.k=k; PS.cnow=cnow; PS.contact=contact; PS.manual=false; PS.anim=null;
+    const cv=document.createElement('canvas'), sc=new Scene(cv,R,P); sc.render(cv,s=>drawPara(s,etatDessinPara()),{w:900,h:675,dpr:1.5,nodecor:true}); [PS.k,PS.cnow,PS.contact,PS.manual,PS.anim]=save; return cv.toDataURL('image/png'); };
+  const txt=(a,b)=>PS.steps.slice(a,b).map(s=>`<div class="bloc">${s.html}</div>`).join('');
+  let html=`<div class="pg"><h1>Méthode des parallèles</h1><p><b>${P.sens==='max'?'Maximiser':'Minimiser'}</b> f = ${termeXY(P.corig[0],P.corig[1])}</p><p>sous les contraintes :</p>${P.rowsG.map((r,k)=>`<div>(${k+1}) ${termeXY(r.a[0],r.a[1])} ${r.op==='<='?'≤':'≥'} ${fSig(r.b)}</div>`).join('')}<div>x ≥ 0, y ≥ 0</div></div>`;
+  html+=`<div class="pg"><img src="${snap(m+1,PA.c0,false)}" alt="">${txt(0,m+1)}</div>`;
+  html+=`<div class="pg"><img src="${snap(m+3,PA.c0,false)}" alt="">${txt(m+1,m+3)}</div>`;
+  html+=`<div class="pg"><img src="${snap(total,PA.c1,!PA.nonborne)}" alt="">${txt(m+3,total)}</div>`;
+  box.innerHTML=html; setTimeout(()=>window.print(),150); }
+$('printBtnP').onclick=imprimerPara;
 
 dessinerFormulaire();
 </script>
