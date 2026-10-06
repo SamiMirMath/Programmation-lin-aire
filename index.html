@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Le simplexe en images</title>
+<title>Programmation linéaire</title>
 <style>
 :root{
   --bg:#f5f6f9; --fg:#1b2130; --muted:#5b6478; --card:#ffffff; --border:#d6dbe6;
@@ -93,12 +93,12 @@ input[type=range]{width:100%}
 </head>
 <body>
 <div class="wrap">
-  <h1>Le simplexe en images</h1>
-  <p class="lead">Choisissez la méthode : le <b>simplexe</b> (algébrique, 2 ou 3 variables, étape par étape comme dans le polycopié) ou les <b>parallèles</b> (méthode graphique, 2 variables). Tout se calcule dans votre navigateur.</p>
+  <h1>Programmation linéaire</h1>
+  <p class="lead">Méthode algébrique ou bien géométrique.</p>
 
   <section id="formCard" class="card">
     <div class="row"><span class="lab">Méthode</span>
-      <button data-meth="simplexe">Simplexe (méthode algébrique)</button><button data-meth="para">Parallèles (méthode graphique, 2 variables)</button></div>
+      <button data-meth="para">2C · Méthode géométrique</button><button data-meth="simplexe">2Mr/OS · Méthode algébrique</button></div>
     <div class="row"><span class="lab">Nombre de variables</span>
       <button data-dim="2">2 variables (polygone)</button><button data-dim="3">3 variables (polyèdre)</button></div>
     <div class="row"><span class="lab">Objectif</span>
@@ -215,7 +215,7 @@ function construireProbleme(S){
     if(rhs===null) throw new ErreurSaisie(`Contrainte ${num} : second membre manquant.`);
     if(nul) throw new ErreurSaisie(`Contrainte ${num} : aucun coefficient non nul.`);
     let aa=a, bb=rhs; if(r.op===">="){ aa=a.map(x=>x.neg()); bb=rhs.neg(); }
-    if(bb.sign()<0) throw new ErreurSaisie(`Contrainte ${num} : après mise sous la forme a·x ≤ b, le second membre est négatif : l'origine n'est pas admissible. La méthode algébrique du polycopié suppose des contraintes ≤ à second membre ≥ 0 (les autres cas demandent la phase 1).`);
+    if(bb.sign()<0) throw new ErreurSaisie(`Contrainte ${num} : après mise sous la forme a·x ≤ b, le second membre est négatif : l'origine n'est pas admissible. La méthode algébrique suppose des contraintes ≤ à second membre ≥ 0 (les autres cas demandent la phase 1).`);
     A.push(aa); b.push(bb); });
   if(!A.length) throw new ErreurSaisie("Il faut au moins une contrainte.");
   const m=A.length, nv=n+m, cint=S.sens==='max'?c:c.map(x=>x.neg());
@@ -393,7 +393,7 @@ function dessinerFormulaire(){
   document.querySelectorAll('[data-meth]').forEach(b=>b.classList.toggle('on',b.dataset.meth===(S.meth||'simplexe')));
   document.querySelector('[data-dim="3"]').disabled=para; $('exS').hidden=para; $('exP').hidden=!para;
   $('hint').textContent=para?"Méthode graphique : toutes les contraintes ≤ ou ≥ sont acceptées (second membre quelconque). Nombres : 3, 0,5 ou 1/2 ; case vide = 0."
-    :"Nombres : 3, 0,5 ou 1/2 ; case vide = 0. Méthode du polycopié : contraintes ≤ à second membre ≥ 0 (une contrainte ≥ est acceptée si elle le devient après multiplication par −1).";
+    :"Nombres : 3, 0,5 ou 1/2 ; case vide = 0. Méthode algébrique : contraintes ≤ à second membre ≥ 0 (une contrainte ≥ est acceptée si elle le devient après multiplication par −1).";
   const coefHtml=(vals,onchange)=>range(n).map(j=>`<input inputmode="decimal" data-j="${j}" value="${vals[j]||''}" aria-label="coefficient"> ${NM(j)}${j<n-1?' +':''}`).join(' ');
   $('objRow').innerHTML='<b>f&nbsp;=</b> '+coefHtml(S.f);
   $('objRow').querySelectorAll('input').forEach(inp=>inp.oninput=()=>{S.f[+inp.dataset.j]=inp.value;});
@@ -425,7 +425,7 @@ function lancer(){
   scene=new Scene($('cv'),R,P);
   $('formCard').hidden=true; $('app').hidden=false;
   const fexpr=expr(ZERO,range(1,P.n+1),P.corig);
-  $('sumTxt').innerHTML=`<b>${P.sens==='max'?'Maximiser':'Minimiser'}</b> f = ${fexpr} &nbsp;·&nbsp; ${P.m} contrainte${P.m>1?'s':''} &nbsp;·&nbsp; ${P.n} variables`;
+  $('sumTxt').innerHTML=`<b>Méthode algébrique (2Mr/OS)</b> &nbsp;·&nbsp; <b>${P.sens==='max'?'Maximiser':'Minimiser'}</b> f = ${fexpr} &nbsp;·&nbsp; ${P.m} contrainte${P.m>1?'s':''} &nbsp;·&nbsp; ${P.n} variables`;
   construireLegende(); construireSliders(); setMode('sim'); }
 function centre(){ const pts=R.V.filter(v=>v.reel).map(v=>v.p); return range(P.n).map(i=>pts.reduce((s,p)=>s+p[i],0)/pts.length); }
 
@@ -532,7 +532,7 @@ function dessinSim(sc,ctx,Pt){ const s=ctx.hist[ctx.hist.length-1], A=position(s
 const fdisp=g=>P.sens==='max'?g:-g;
 
 /* =====================================================================
-   9. NARRATION PAR ÉTAPES (comme dans le polycopié)
+   9. NARRATION PAR ÉTAPES
    ===================================================================== */
 function blocsPivot(s,info,n2,subMax,unb,instruction){
   const g=P.sens==='max'?'f':'g', n=P.n, blocs=[]; const cand=candidates(s);
@@ -706,7 +706,7 @@ addEventListener('keydown',e=>{ if(PS&&!$('appPara').hidden&&!/INPUT|TEXTAREA/.t
    ===================================================================== */
 function imprimerRapport(){
   const recs=enregistrements(true), box=$('rapport'); const rows=P.A.map((a,k)=>`<div>(${k+1}) ${expr(ZERO,range(1,P.n+1),a)} ≤ ${fAbs(P.b[k])}</div>`).join('');
-  let html=`<div class="pg"><h1>Le simplexe en images</h1><p><b>${P.sens==='max'?'Maximiser':'Minimiser'}</b> f = ${expr(ZERO,range(1,P.n+1),P.corig)}</p><p>sous les contraintes :</p>${rows}<div>${range(1,P.n+1).map(X).join(', ')} ≥ 0</div></div>`;
+  let html=`<div class="pg"><h1>Programmation linéaire — méthode algébrique (2Mr/OS)</h1><p><b>${P.sens==='max'?'Maximiser':'Minimiser'}</b> f = ${expr(ZERO,range(1,P.n+1),P.corig)}</p><p>sous les contraintes :</p>${rows}<div>${range(1,P.n+1).map(X).join(', ')} ≥ 0</div></div>`;
   recs.forEach((rec,k)=>{
     const cv=document.createElement('canvas'); const sc=new Scene(cv,R,P); sc.yaw=scene.yaw; sc.pitch=scene.pitch;
     const ctx={hist:rec.hist,n2:rec.n2,pending:rec.info,sub:rec.sub,unb:rec.unb}; const sv=ST.anim; ST.anim=null; const svmsg=ST.msg; ST.msg='';
@@ -825,7 +825,7 @@ function drawPara(sc,d){ const c=sc.g,C=sc.C,A=PA; sc.grille2D();
 
 function etatDessinPara(){ const m=P.rowsG.length, k=PS.k; return {nc:Math.min(k,m),region:k>m,family:k>m+1,sens:k>m+2,sweep:(k>m+3||(PS.manual&&k>m+1))?PS.cnow:null,contact:PS.contact}; }
 function rendrePara(){ if(!PS) return; const m=P.rowsG.length, k=PS.k, total=PS.steps.length;
-  const intro=`<div class="bloc"><h3>Méthode des parallèles</h3><div>${P.sens==='max'?'<b>Maximiser</b>':'<b>Minimiser</b>'} f = ${termeXY(P.corig[0],P.corig[1])}</div><div class="small">sous ${m} contrainte${m>1?'s':''} ; x ≥ 0, y ≥ 0.</div><div class="small">Cliquez sur « Étape suivante » : on trace les contraintes, on délimite la zone admissible, puis on fait glisser une droite parallèle jusqu'au premier contact.</div></div>`;
+  const intro=`<div class="bloc"><h3>Méthode géométrique (2C) — droites parallèles</h3><div>${P.sens==='max'?'<b>Maximiser</b>':'<b>Minimiser</b>'} f = ${termeXY(P.corig[0],P.corig[1])}</div><div class="small">sous ${m} contrainte${m>1?'s':''} ; x ≥ 0, y ≥ 0.</div><div class="small">Cliquez sur « Étape suivante » : on trace les contraintes, on délimite la zone admissible, puis on fait glisser une droite parallèle jusqu'au premier contact.</div></div>`;
   $('pageBodyP').innerHTML=(k===0?intro:'')+PS.steps.slice(0,k).map(s=>`<div class="bloc">${s.html}</div>`).join('');
   $('pagebarP').innerHTML=`<b>Étape ${k} / ${total}</b>`; if(k>0) $('pageBodyP').scrollTo({top:1e6,behavior:'smooth'});
   sceneP.render($('cvp'),sc=>drawPara(sc,etatDessinPara()),{nodecor:true});
@@ -858,14 +858,14 @@ function lancerPara(){
   $('err').textContent=''; P=p; R=reg; ST=null; PA=analyserPara(); sceneP=new Scene($('cvp'),R,P);
   PS={k:0,cnow:PA.c0,contact:false,manual:false,anim:null,auto:false,timer:null,steps:etapesPara()};
   $('formCard').hidden=true; $('app').hidden=true; $('appPara').hidden=false;
-  $('sumTxtP').innerHTML=`<b>${P.sens==='max'?'Maximiser':'Minimiser'}</b> f = ${termeXY(P.corig[0],P.corig[1])} &nbsp;·&nbsp; ${P.rowsG.length} contrainte${P.rowsG.length>1?'s':''} &nbsp;·&nbsp; méthode des parallèles`;
+  $('sumTxtP').innerHTML=`<b>Méthode géométrique (2C)</b> &nbsp;·&nbsp; <b>${P.sens==='max'?'Maximiser':'Minimiser'}</b> f = ${termeXY(P.corig[0],P.corig[1])} &nbsp;·&nbsp; ${P.rowsG.length} contrainte${P.rowsG.length>1?'s':''} &nbsp;·&nbsp; parallèles`;
   $('legendP').innerHTML=P.rowsG.map((r,k)=>`<span><b class="sw" style="background:${PAL[k%PAL.length]}"></b>(${k+1}) ${termeXY(r.a[0],r.a[1])} ${r.op==='<='?'≤':'≥'} ${fSig(r.b)}</span>`).join('')+(R.bornee?'':'<span>⚠ région non bornée : cadre d\'affichage en pointillés</span>');
   rendrePara(); }
 function imprimerPara(){ const m=P.rowsG.length, box=$('rapport'), total=PS.steps.length;
   const snap=(k,cnow,contact)=>{ const save=[PS.k,PS.cnow,PS.contact,PS.manual,PS.anim]; PS.k=k; PS.cnow=cnow; PS.contact=contact; PS.manual=false; PS.anim=null;
     const cv=document.createElement('canvas'), sc=new Scene(cv,R,P); sc.render(cv,s=>drawPara(s,etatDessinPara()),{w:900,h:675,dpr:1.5,nodecor:true}); [PS.k,PS.cnow,PS.contact,PS.manual,PS.anim]=save; return cv.toDataURL('image/png'); };
   const txt=(a,b)=>PS.steps.slice(a,b).map(s=>`<div class="bloc">${s.html}</div>`).join('');
-  let html=`<div class="pg"><h1>Méthode des parallèles</h1><p><b>${P.sens==='max'?'Maximiser':'Minimiser'}</b> f = ${termeXY(P.corig[0],P.corig[1])}</p><p>sous les contraintes :</p>${P.rowsG.map((r,k)=>`<div>(${k+1}) ${termeXY(r.a[0],r.a[1])} ${r.op==='<='?'≤':'≥'} ${fSig(r.b)}</div>`).join('')}<div>x ≥ 0, y ≥ 0</div></div>`;
+  let html=`<div class="pg"><h1>Programmation linéaire — méthode géométrique (2C)</h1><p><b>${P.sens==='max'?'Maximiser':'Minimiser'}</b> f = ${termeXY(P.corig[0],P.corig[1])}</p><p>sous les contraintes :</p>${P.rowsG.map((r,k)=>`<div>(${k+1}) ${termeXY(r.a[0],r.a[1])} ${r.op==='<='?'≤':'≥'} ${fSig(r.b)}</div>`).join('')}<div>x ≥ 0, y ≥ 0</div></div>`;
   html+=`<div class="pg"><img src="${snap(m+1,PA.c0,false)}" alt="">${txt(0,m+1)}</div>`;
   html+=`<div class="pg"><img src="${snap(m+3,PA.c0,false)}" alt="">${txt(m+1,m+3)}</div>`;
   html+=`<div class="pg"><img src="${snap(total,PA.c1,!PA.nonborne)}" alt="">${txt(m+3,total)}</div>`;
